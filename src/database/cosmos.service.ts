@@ -14,18 +14,14 @@ export class CosmosService {
         this.client = new CosmosClient(connectionString);
     }
 
-    async createSession(sessionId: string): Promise<Session> {
+    async createSession(session: Session): Promise<Session> {
         const database = this.client.database(this.databaseId);
         const container = database.container(this.containerId);
 
-        const session: Session = {
-            id: sessionId,
-            cards: undefined, // No cards yet
-            fortune: undefined, // No fortune yet
-        };
+        const { resource } = await container.items.create(session);
 
-        await container.items.create(session);
-        return session;
+        // Map the result to only include relevant fields
+        return this.mapToSession(resource);
     }
 
     async updateSession(sessionId: string, updates: Partial<Session>): Promise<Session> {
@@ -39,9 +35,10 @@ export class CosmosService {
             ...updates, // Merge updates with the existing session
         };
 
-        await container.item(sessionId, sessionId).replace(updatedSession);
+        const { resource } = await container.item(sessionId, sessionId).replace(updatedSession);
 
-        return updatedSession as Session;
+        // Map the result to only include relevant fields
+        return this.mapToSession(resource);
     }
 
     // Get a session by ID
@@ -51,12 +48,19 @@ export class CosmosService {
 
         try {
             const { resource } = await container.item(sessionId, sessionId).read();
-            return resource as Session;
+
+            // Map the result to only include relevant fields
+            return this.mapToSession(resource);
         } catch (error) {
             if (error.code === 404) {
                 return null;
             }
             throw error;
         }
+    }
+
+    private mapToSession(resource: any): Session {
+        const { id, topic, cards, fortune } = resource;
+        return { id, topic, cards, fortune }; // Only include relevant fields
     }
 }

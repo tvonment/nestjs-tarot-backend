@@ -9,8 +9,11 @@ export class SessionController {
     constructor(private readonly sessionService: SessionService, private readonly openAIService: OpenAIService) { }
 
     @Post()
-    async createSession(@Body('sessionId') sessionId: string): Promise<Session> {
-        return this.sessionService.createSession(sessionId);
+    async createSession(
+        @Body('sessionId') sessionId: string,
+        @Body('topic') topic: string,
+    ): Promise<Session> {
+        return this.sessionService.createSession(sessionId, topic);
     }
 
     @Get()
@@ -23,19 +26,11 @@ export class SessionController {
         @Body('sessionId') sessionId: string,
         @Body('cardFileName') cardFileName: string,
     ): Promise<Session> {
-        const cards: Card[] = await this.openAIService.getCards(cardFileName); // Fetch cards using the OpenAIService
-        return this.sessionService.addCardsToSession(sessionId, cards);
+        return this.sessionService.addCardsToSession(sessionId, cardFileName);
     }
 
     @Patch('fortune')
     async getFortune(@Body('sessionId') sessionId: string): Promise<Session> {
-        const session = await this.sessionService.getSession(sessionId);
-
-        if (!session || !session.cards) {
-            throw new Error('No cards available for this session.');
-        }
-
-        const fortune = await this.openAIService.readCards(session.cards, 'Tell me my fortune about love');
-        return this.sessionService.addFortuneToSession(sessionId, fortune);
+        return this.sessionService.addFortuneToSession(sessionId);
     }
 }
