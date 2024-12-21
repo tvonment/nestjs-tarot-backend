@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
-import { OpenaiService } from './openai.service';
+import { OpenAIService } from './openai.service';
+import { BlobService } from 'src/database/blob.service';
 
 @Module({
-  providers: [OpenaiService]
+  providers: [OpenAIService, BlobService],
+  exports: [OpenAIService],
 })
-export class OpenaiModule {}
+export class OpenAIModule { }

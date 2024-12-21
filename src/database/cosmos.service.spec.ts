@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CosmosService } from './cosmos.service';
 import { ConfigService } from '@nestjs/config';
 import { mockConfigService } from '../../test/mocks/config.service.mock';
+import { Session } from '../types/session.interface';
 
 describe('CosmosService', () => {
   let service: CosmosService;
@@ -21,14 +22,53 @@ describe('CosmosService', () => {
     expect(service).toBeDefined();
   });
 
-  it('should save and retrieve a session', async () => {
-    const session = { sessionId: '123', data: 'test' };
+  it('should create a session', async () => {
+    const sessionId = '123';
+    const mockSession: Session = { id: sessionId };
 
-    jest.spyOn(service, 'saveSession').mockResolvedValue();
-    jest.spyOn(service, 'getSession').mockResolvedValue(session);
+    jest.spyOn(service, 'createSession').mockResolvedValue(mockSession);
 
-    await service.saveSession(session);
-    const result = await service.getSession('123');
-    expect(result).toEqual(session);
+    const result = await service.createSession(sessionId);
+
+    expect(result).toEqual(mockSession);
+    expect(service.createSession).toHaveBeenCalledWith(sessionId);
+  });
+
+  it('should update a session', async () => {
+    const sessionId = '123';
+    const existingSession: Session = { id: sessionId, cards: [] };
+    const updates: Partial<Session> = { fortune: 'A bright future awaits!' };
+    const updatedSession: Session = { ...existingSession, ...updates };
+
+    jest.spyOn(service, 'getSession').mockResolvedValue(existingSession);
+    jest.spyOn(service, 'updateSession').mockResolvedValue(updatedSession);
+
+    const result = await service.updateSession(sessionId, updates);
+
+    expect(result).toEqual(updatedSession);
+    expect(service.updateSession).toHaveBeenCalledWith(sessionId, updates);
+  });
+
+  it('should retrieve a session', async () => {
+    const sessionId = '123';
+    const mockSession: Session = { id: sessionId, cards: [], fortune: 'A bright future awaits!' };
+
+    jest.spyOn(service, 'getSession').mockResolvedValue(mockSession);
+
+    const result = await service.getSession(sessionId);
+
+    expect(result).toEqual(mockSession);
+    expect(service.getSession).toHaveBeenCalledWith(sessionId);
+  });
+
+  it('should return null for a non-existent session', async () => {
+    const sessionId = 'non-existent';
+
+    jest.spyOn(service, 'getSession').mockResolvedValue(null);
+
+    const result = await service.getSession(sessionId);
+
+    expect(result).toBeNull();
+    expect(service.getSession).toHaveBeenCalledWith(sessionId);
   });
 });
