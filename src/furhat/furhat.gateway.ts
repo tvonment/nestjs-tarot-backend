@@ -1,20 +1,22 @@
 import { WebSocketGateway, WebSocketServer, SubscribeMessage, MessageBody } from '@nestjs/websockets';
 import { Server } from 'socket.io';
+import { OpenAIService } from '../openai/openai.service';
 
 @WebSocketGateway()
 export class FurhatGateway {
   @WebSocketServer()
   server: Server;
 
-  @SubscribeMessage('fortuneRequest')
-  handleFortuneRequest(@MessageBody() data: any): string {
-    console.log('Received fortune request:', data);
-    // Process the fortune request
-    return 'Your fortune is being prepared!';
-  }
+  constructor(private readonly openAIService: OpenAIService) { }
 
-  sendToFurhat(event: string, data: any) {
-    // Use this method to send data back to Furhat
-    this.server.emit(event, data);
+  @SubscribeMessage('fortuneRequest')
+  async handleFortuneRequest(@MessageBody() data: any): Promise<string> {
+    console.log('Received fortune request:', data);
+
+    // Call OpenAIService to process the fortune
+    const result = await this.openAIService.callChatModel(data.message);
+
+    // Return the result
+    return result.choices[0].message.content;
   }
 }
