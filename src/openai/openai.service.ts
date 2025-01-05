@@ -6,16 +6,36 @@ import { Card } from 'src/types/card.interface';
 import { Fortune, Gesture } from 'src/types/fortune.interface';
 import { Session } from 'src/types/session.interface';
 
+/**
+ * Service for interacting with the OpenAI API
+ * Fetches environment variables for API URL and key,
+ * and uses them to send requests to the Azure OpenAI services.
+ * Also integrates with BlobService if needed to handle file storage.
+ */
 @Injectable()
 export class OpenAIService {
     private readonly chatApiUrl: string;
     private readonly chatApiKey: string;
 
+    /**
+     * Initializes the OpenAI service
+     * @param configService Service to retrieve environment variables
+     * @param blobService Used for handling any blob-related operations
+     */
     constructor(private readonly configService: ConfigService, private readonly blobService: BlobService) {
         this.chatApiUrl = this.configService.get<string>('AZURE_OPENAI_URL');
         this.chatApiKey = this.configService.get<string>('AZURE_OPENAI_API_KEY');
     }
 
+    /**
+     * Generates an AI-driven response to a user's open-ended tarot question.
+     * Constructs a system message from the session's topic, cards, and fortunes,
+     * instructing the AI to role-play as a fortune-telling assistant,
+     * then sends the message to Azure OpenAI for a response.
+     * @param session The current session containing the tarot data
+     * @param question The user's inquiry about the reading
+     * @returns The OpenAI-generated answer as a string
+     */
     async getOpenQuestionAnswer(session: Session, question: string): Promise<string> {
         try {
             const systemMessage = `
@@ -64,6 +84,32 @@ export class OpenAIService {
         }
     }
 
+    /**
+     * This function takes an array of conversation objects, each containing a question and a description,
+     * and returns a Promise that resolves to an object with a name and description of a card.
+     * 
+     * The function is designed to analyze the provided conversation data and determine the most relevant card
+     * based on the given descriptions or questions. It utilizes the OpenAI API to process the conversation data
+     * and generate a response that includes the name and description of the card.
+     * 
+     * @param {Array<{ question: string, description: string }>} conversation - An array of objects where each object
+     * contains a 'question' and a 'description' string. These represent the conversation data that will be analyzed
+     * to determine the appropriate card.
+     * 
+     * @returns {Promise<{ name: string; description: string }>} - A Promise that resolves to an object containing
+     * the 'name' and 'description' of the card that best matches the provided conversation data.
+     * 
+     * @example
+     * const conversation = [
+     *   { question: "What is my future?", description: "I am curious about my career." },
+     *   { question: "Will I be successful?", description: "I want to know about my financial prospects." }
+     * ];
+     * 
+     * getCardByDescriptionOrQuestionCard(conversation).then(card => {
+     *   console.log(card.name); // Outputs the name of the card
+     *   console.log(card.description); // Outputs the description of the card
+     * });
+     */
     async getCardByDescriptionOrQuestionCard(conversation: { question: string, description: string }[]): Promise<{ name: string; description: string }> {
 
         try {
@@ -184,6 +230,26 @@ export class OpenAIService {
         }
     }
 
+    /**
+     * This function takes a user's input string and returns a Promise that resolves to a string representing
+     * the topic of the reading. The function is designed to analyze the user's input and determine the most
+     * relevant topic for a tarot card reading.
+     * 
+     * The function utilizes the OpenAI API to process the user's input and generate a response that includes
+     * the topic of the reading. It uses a few-shot learning approach by providing examples of user inputs and
+     * corresponding topics to guide the API in generating the appropriate topic.
+     * 
+     * @param {string} userInput - A string representing the user's input or question for the tarot card reading.
+     * 
+     * @returns {Promise<string>} - A Promise that resolves to a string representing the topic of the reading.
+     * 
+     * @example
+     * const userInput = "I want to know something about my Love Life.";
+     * 
+     * getTopic(userInput).then(topic => {
+     *   console.log(topic); // Outputs: "Love Life."
+     * });
+     */
     async getTopic(userInput: string): Promise<string> {
 
         try {
@@ -269,7 +335,29 @@ export class OpenAIService {
         }
     }
 
-    // Fetch cards based on image inputs
+    /**
+     * This function takes the filename of a card image and returns a Promise that resolves to an array of card objects.
+     * Each card object contains the name, description, and position of the card as per the Celtic Cross spread template.
+     * 
+     * The function utilizes the OpenAI API to process the card image and generate a structured JSON response that includes
+     * the details of the cards. It uses a predefined system message to instruct the API on how to format the output.
+     * 
+     * @param {string} cardFileName - The filename of the card image to be processed.
+     * 
+     * @returns {Promise<Card[]>} - A Promise that resolves to an array of card objects, where each object contains
+     * the 'name', 'description', and 'position' of the card.
+     * 
+     * @example
+     * const cardFileName = "celtic_cross_spread.png";
+     * 
+     * getCards(cardFileName).then(cards => {
+     *   cards.forEach(card => {
+     *     console.log(card.name); // Outputs the name of each card
+     *     console.log(card.description); // Outputs the description of each card
+     *     console.log(card.position); // Outputs the position of each card
+     *   });
+     * });
+     */
     async getCards(cardFileName: string): Promise<Card[]> {
         try {
             const blueprintUrl = await this.blobService.getBlueprintUrl();
@@ -367,11 +455,31 @@ export class OpenAIService {
         }
     }
 
-    // Read cards and generate a fortune
+    /**
+     * This function takes the filename of a card image and returns a Promise that resolves to an array of card objects.
+     * Each card object contains the name, description, and position of the card as per the Celtic Cross spread template.
+     * 
+     * The function utilizes the OpenAI API to process the card image and generate a structured JSON response that includes
+     * the details of the cards. It uses a predefined system message to instruct the API on how to format the output.
+     * 
+     * @param {string} cardFileName - The filename of the card image to be processed.
+     * 
+     * @returns {Promise<Card[]>} - A Promise that resolves to an array of card objects, where each object contains
+     * the 'name', 'description', and 'position' of the card.
+     * 
+     * @example
+     * const cardFileName = "celtic_cross_spread.png";
+     * 
+     * readCards(cardFileName).then(cards => {
+     *   cards.forEach(card => {
+     *     console.log(card.name); // Outputs the name of each card
+     *     console.log(card.description); // Outputs the description of each card
+     *     console.log(card.position); // Outputs the position of each card
+     *   });
+     * });
+     */
     async readCards(cards: Card[], topic: string): Promise<Fortune[]> {
-
         const gestures = Object.values(Gesture);
-
         try {
             let systemMessage = `
                 You are a Fortune Teller specializing in reading the future using tarot cards. Based on the given Celtic Cross spread, provide detailed predictions. Here are the cards:
@@ -440,12 +548,11 @@ export class OpenAIService {
                         {
                             "content": "In summary, this spread emphasizes a journey from introspection to transformation, with choices significantly shaping your romantic experiences. By releasing old patterns (Death) and embracing new beginnings with an open heart (Fool), while aligning with your deeper values (Lovers), you can manifest a relationship filled with abundance and nurturing love (Empress).",
                             "card": "NONE",
-                            "gesture": "${Gesture.SMILE_BACK}"
+                            "gesture": "${Gesture.BIG_SMILE}"
                         }
                     ]
                 }
             `;
-
 
             const payload = {
                 messages: [

@@ -16,15 +16,5 @@ export enum Gesture {
     SURPRISE = 'Gestures.Surprise',
     BROW_RAISE = 'Gestures.BrowRaise',
     BROW_FROWN = 'Gestures.BrowFrown',
-    THOUGHTFUL = 'Gestures.Thoughtful',
-    CLOSE_EYES = 'Gestures.CloseEyes',
-    OPEN_EYES = 'Gestures.OpenEyes',
-    SMILE_BACK = 'Gestures.SmileBack',
-    PROMINENCE = 'Gestures.Prominence',
-    USER_SPEECH_START = 'Gestures.UserSpeechStart',
-    BROW_UP = 'Gestures.BrowUp',
-    LOOK_AROUND = 'Gestures.LookAround',
-    TILT_LEFT = 'Gestures.TiltLeft',
-    TILT_RIGHT = 'Gestures.TiltRight',
-    BLINK = 'Gestures.Blink'
+    THOUGHTFUL = 'Gestures.Thoughtful'
 }

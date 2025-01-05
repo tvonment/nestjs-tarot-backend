@@ -3,6 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { CosmosClient } from '@azure/cosmos';
 import { Session } from '../types/session.interface';
 
+/**
+ * Service for handling Azure Cosmos DB operations related to fortune telling sessions
+ * Manages database connections and CRUD operations for sessions
+ */
 @Injectable()
 export class CosmosService {
     private readonly client: CosmosClient;
@@ -14,6 +18,12 @@ export class CosmosService {
         this.client = new CosmosClient(connectionString);
     }
 
+    /**
+     * Creates a new session in Cosmos DB
+     * @param session The session object to be created
+     * @returns Promise containing the created session
+     * @throws CosmosError if creation fails
+     */
     async createSession(session: Session): Promise<Session> {
         const database = this.client.database(this.databaseId);
         const container = database.container(this.containerId);
@@ -24,6 +34,13 @@ export class CosmosService {
         return this.mapToSession(resource);
     }
 
+    /**
+     * Updates an existing session with new data
+     * @param sessionId Unique identifier of the session to update
+     * @param updates Partial session data to merge with existing session
+     * @returns Promise containing the updated session
+     * @throws CosmosError if session not found or update fails
+     */
     async updateSession(sessionId: string, updates: Partial<Session>): Promise<Session> {
         const database = this.client.database(this.databaseId);
         const container = database.container(this.containerId);
@@ -41,7 +58,12 @@ export class CosmosService {
         return this.mapToSession(resource);
     }
 
-    // Get a session by ID
+    /**
+     * Retrieves a session by its ID
+     * @param sessionId Unique identifier of the session to fetch
+     * @returns Promise containing the session if found, null otherwise
+     * @throws CosmosError if database operation fails
+     */
     async getSession(sessionId: string): Promise<Session | null> {
         const database = this.client.database(this.databaseId);
         const container = database.container(this.containerId);
