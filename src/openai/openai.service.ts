@@ -4,6 +4,7 @@ import { BlobService } from '../database/blob.service';
 import axios from 'axios';
 import { Card } from 'src/types/card.interface';
 import { Fortune, Gesture } from 'src/types/fortune.interface';
+import { Session } from 'src/types/session.interface';
 
 @Injectable()
 export class OpenAIService {
@@ -13,6 +14,259 @@ export class OpenAIService {
     constructor(private readonly configService: ConfigService, private readonly blobService: BlobService) {
         this.chatApiUrl = this.configService.get<string>('AZURE_OPENAI_URL');
         this.chatApiKey = this.configService.get<string>('AZURE_OPENAI_API_KEY');
+    }
+
+    async getOpenQuestionAnswer(session: Session, question: string): Promise<string> {
+        try {
+            const systemMessage = `
+                You are an fortune telling assistant that just read the tarot cards to a user and he has questions about it.
+
+                The topic of the session is: ${session.topic}
+
+                These are the cards in the Celtic Cross spread:
+                ${session.cards.map(card => `'${card.name}' with meaning: '${card.description}' at position ${card.position}`).join(', \n')}
+
+                This is the fortune you just read:
+                ${session.fortune.map(fortune => `Card: ${fortune.card}; Content: ${fortune.content}`).join('\n')}
+
+                Provide a response to the user's question.
+            `;
+
+            let history = [];
+
+            if (session.openQuestions && session.openQuestions.length > 0) {
+                history = session.openQuestions.map((message) => [
+                    { role: 'user', content: message.question },
+                    { role: 'assistant', content: message.answer }
+                ]).flat();
+            }
+
+            const payload = {
+                messages: [
+                    { role: 'system', content: systemMessage },
+                    ...history,
+                    { role: 'user', content: question },
+                ]
+            };
+
+            const response = await axios.post(this.chatApiUrl, payload, {
+                headers: {
+                    'api-key': `${this.chatApiKey}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            const answer: string = response.data.choices[0].message.content;
+            return answer;
+        } catch (error) {
+            console.error('Error answering question: ', error.message);
+            throw error;
+        }
+    }
+
+    async getCardByDescriptionOrQuestionCard(conversation: { question: string, description: string }[]): Promise<{ name: string; description: string }> {
+
+        try {
+            const systemMessage = `
+                You are an assistant that identifies tarot cards based on user descriptions.
+                - If the description is clear enough to match a specific card with confidence, return a JSON object with:
+                    - 'name': The name of the card.
+                    - 'description': A brief explanation of the card.
+                - If the description is unclear or ambiguous, return:
+                    {
+                        "name": "Unknown",
+                        "description": "A question to help clarify, such as: 'Are there coins, wands, cups, or swords on it? Do you see a number or a title of the card?' but return only questions."
+                    }
+    
+                The output must strictly adhere to this JSON format:
+                {
+                    "name": "string",
+                    "description": "string"
+                }
+    
+                Examples:
+    
+                Input: "There is a man in a tent-like thing and two sphinx-looking animals in front of it."
+                Output:
+                {
+                    "name": "The Chariot",
+                    "description": "The Chariot represents control, determination, and overcoming obstacles. It shows a man in a chariot drawn by two sphinxes."
+                }
+    
+                Input: "It's the Chariot."
+                Output:
+                {
+                    "name": "The Chariot",
+                    "description": "The Chariot represents control, determination, and overcoming obstacles. It shows a man in a chariot drawn by two sphinxes."
+                }
+    
+                Input: "There's a card with a woman holding a lion's mouth."
+                Output:
+                {
+                    "name": "Strength",
+                    "description": "Strength represents inner courage, patience, and compassion. It shows a woman gently taming a lion."
+                }
+    
+                Input: "It's about balance and justice."
+                Output:
+                {
+                    "name": "Justice",
+                    "description": "Justice signifies fairness, truth, and law. It depicts a figure holding a sword and scales."
+                }
+    
+                Input: "It has a number on it, but I can't remember the details."
+                Output:
+                {
+                    "name": "Unknown",
+                    "description": "Do you recall the number, or can you describe the imagery on the card?"
+                }
+    
+                Input: "The card has cups, and there's some celebration happening."
+                Output:
+                {
+                    "name": "Three of Cups",
+                    "description": "The Three of Cups symbolizes friendship, joy, and celebration. It depicts three women raising cups in a toast."
+                }
+    
+                Input: "I'm not sure, but there are swords on it."
+                Output:
+                {
+                    "name": "Unknown",
+                    "description": "Can you describe the scene further? How many swords are there, and what are the figures doing?"
+                }
+            `;
+
+            let conversationMessages = [];
+
+            if (conversation && conversation.length > 0) {
+                conversationMessages = conversation.flatMap((message) => [
+                    { role: 'assistant', content: message.question },
+                    { role: 'user', content: message.description }
+                ]);
+            }
+
+            const payload = {
+                messages: [
+                    { role: 'system', content: systemMessage },
+                    ...conversationMessages,
+                ],
+                response_format: {
+                    type: 'json_schema',
+                    json_schema: {
+                        name: 'CardResponse',
+                        strict: true,
+                        schema: {
+                            type: 'object',
+                            properties: {
+                                name: { type: 'string' },
+                                description: { type: 'string' },
+                            },
+                            required: ['name', 'description'],
+                            additionalProperties: false
+                        }
+                    }
+                }
+            };
+
+            const response = await axios.post(this.chatApiUrl, payload, {
+                headers: {
+                    'api-key': `${this.chatApiKey}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            const data = response.data.choices[0].message.content;
+            const card: { name: string; description: string } = JSON.parse(data); // Parse the JSON response
+            return card;
+        } catch (error) {
+            console.error('Error fetching card:', error.message);
+            throw error;
+        }
+    }
+
+    async getTopic(userInput: string): Promise<string> {
+
+        try {
+            const systemMessage = `
+                You are a Fortune Teller specializing in reading the future using tarot cards. Formulate a topic for the reading with what the user said.
+            `;
+
+            const fewShotLearning = [
+                { role: 'user', content: "I want to know something about my Love Life." },
+                { role: 'assistant', content: "Love Life." },
+                { role: 'user', content: "How does my future career look like?" },
+                { role: 'assistant', content: "Future Career." },
+                { role: 'user', content: "I want to know about my health." },
+                { role: 'assistant', content: "Health." },
+                { role: 'user', content: "I want to know about my financial situation." },
+                { role: 'assistant', content: "Financial Situation." },
+                { role: 'user', content: "What are the cards saying about my current presence?" },
+                { role: 'assistant', content: "Current Presence." },
+                { role: 'user', content: "Tell me what the cards say about my friendships." },
+                { role: 'assistant', content: "Friendships." },
+                { role: 'user', content: "What does the future hold for me?" },
+                { role: 'assistant', content: "Future Outlook." },
+                { role: 'user', content: "Can the cards guide me on my spiritual journey?" },
+                { role: 'assistant', content: "Spiritual Journey." },
+                { role: 'user', content: "I need advice on a tough decision I'm facing." },
+                { role: 'assistant', content: "Decision Making." },
+                { role: 'user', content: "What do the cards say about my creative projects?" },
+                { role: 'assistant', content: "Creative Projects." },
+                { role: 'user', content: "Can I learn something about my past life?" },
+                { role: 'assistant', content: "Past Life." },
+                { role: 'user', content: "How can I improve my well-being?" },
+                { role: 'assistant', content: "Well-being." },
+                { role: 'user', content: "What challenges should I prepare for?" },
+                { role: 'assistant', content: "Challenges." },
+                { role: 'user', content: "Can the cards tell me about my family relationships?" },
+                { role: 'assistant', content: "Family Relationships." },
+                { role: 'user', content: "What should I focus on to grow as a person?" },
+                { role: 'assistant', content: "Personal Growth." },
+                { role: 'user', content: "What opportunities might come my way soon?" },
+                { role: 'assistant', content: "Opportunities." },
+                { role: 'user', content: "Can the cards help me understand my life's purpose?" },
+                { role: 'assistant', content: "Life's Purpose." },
+                { role: 'user', content: "What surprises might life have for me?" },
+                { role: 'assistant', content: "Surprises." },
+                { role: 'user', content: "How can I handle the conflict I'm facing right now?" },
+                { role: 'assistant', content: "Conflict Resolution." },
+                { role: 'user', content: "What guidance do the cards have for this season?" },
+                { role: 'assistant', content: "Seasonal Guidance." },
+                { role: 'user', content: "What are the energies surrounding me right now?" },
+                { role: 'assistant', content: "Current Energies." },
+                { role: 'user', content: "How can I make the most of this year?" },
+                { role: 'assistant', content: "Yearly Outlook." },
+                { role: 'user', content: "How can I prepare for my upcoming travel?" },
+                { role: 'assistant', content: "Travel Preparation." },
+                { role: 'user', content: "What do the cards see in my romantic future?" },
+                { role: 'assistant', content: "Romantic Future." },
+                { role: 'user', content: "Can the cards tell me how to find balance?" },
+                { role: 'assistant', content: "Finding Balance." },
+                { role: 'user', content: "What advice do the cards have about my dreams?" },
+                { role: 'assistant', content: "Dream Interpretation." },
+            ];
+
+            const payload = {
+                messages: [
+                    { role: 'system', content: systemMessage },
+                    ...fewShotLearning,
+                    { role: 'user', content: userInput },
+                ]
+            };
+
+            const response = await axios.post(this.chatApiUrl, payload, {
+                headers: {
+                    'api-key': `${this.chatApiKey}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            const topic: string = response.data.choices[0].message.content;
+            return topic;
+        } catch (error) {
+            console.error('Error fetching topic:', error.message);
+            throw error;
+        }
     }
 
     // Fetch cards based on image inputs
