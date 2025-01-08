@@ -29,6 +29,7 @@ export class SessionService {
             cards: [], // No cards yet
             fortune: [], // No fortune yet
             openQuestions: [], // No open questions yet
+            fortuneSummary: '', // No fortune summary yet
         };
 
         return this.cosmosService.createSession(session);
@@ -101,11 +102,14 @@ export class SessionService {
             throw new Error('No cards available for this session.');
         }
 
-        const fortune: Fortune[] = await this.openAIService.readCards(session.cards, session.topic);
+        const fortuneResponse = await this.openAIService.readCards(session.cards, session.topic);
+        const fortune: Fortune[] = fortuneResponse.fortune;
+        const fortuneSummary: string = fortuneResponse.summary;
 
         session.fortune = fortune;
+        session.fortuneSummary = fortuneSummary;
 
-        return this.cosmosService.updateSession(session.id, { fortune: session.fortune });
+        return this.cosmosService.updateSession(session.id, { fortune: session.fortune, fortuneSummary: session.fortuneSummary });
     }
 
     /**

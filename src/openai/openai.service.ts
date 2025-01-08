@@ -478,7 +478,7 @@ export class OpenAIService {
      *   });
      * });
      */
-    async readCards(cards: Card[], topic: string): Promise<Fortune[]> {
+    async readCards(cards: Card[], topic: string): Promise<{ fortune: Fortune[], summary: string }> {
         const gestures = Object.values(Gesture);
         try {
             let systemMessage = `
@@ -499,6 +499,7 @@ export class OpenAIService {
 
                 Add an introductory fortune at the beginning to set the tone for the reading with the topic: "${topic}" and without a card name.
                 Add a summary at the end to conclude the fortune without a card name.
+                Additionally add a uncoupled fortune summary that stands alone in the separate field. It should give a short summary of the reading that will be read before going into the detailed fortunes.
 
                 Ensure the output strictly adheres to this structure:
                 {
@@ -508,7 +509,8 @@ export class OpenAIService {
                             "card": "string",
                             "gesture": "string"
                         }
-                    ]
+                    ],
+                    "summary": "string"
                 }
 
                 Example output:
@@ -550,7 +552,8 @@ export class OpenAIService {
                             "card": "NONE",
                             "gesture": "${Gesture.BIG_SMILE}"
                         }
-                    ]
+                    ],
+                    "summary": "The cards suggest a transformative journey in relationships, with a focus on choices, balance, and self-discovery. Embrace new beginnings and align with your values to manifest fulfilling connections."
                 }
             `;
 
@@ -585,9 +588,10 @@ export class OpenAIService {
                                         required: ['content', 'gesture', 'card'],
                                         additionalProperties: false
                                     }
-                                }
+                                },
+                                summary: { type: 'string' }
                             },
-                            required: ['fortune'],
+                            required: ['fortune', 'summary'],
                             additionalProperties: false
                         }
                     }
@@ -603,7 +607,8 @@ export class OpenAIService {
 
             const data = response.data.choices[0].message.content;
             const fortunes: Fortune[] = JSON.parse(data).fortune; // Parse the JSON response into Fortune[]
-            return fortunes;
+            const summary: string = JSON.parse(data).summary; // Parse the JSON response into summary string
+            return { fortune: fortunes, summary: summary };
         } catch (error) {
             if (axios.isAxiosError(error) && error.response) {
                 console.error('Error reading cards:', error.response.data);

@@ -4,7 +4,8 @@ import { Fortune } from './fortune.interface';
 export interface Session {
     id: string; // Unique identifier for the session
     topic: string; // Topic of the session
-    cards: Card[];     // Optional List of cards in the session
-    fortune: Fortune[];  // Optional fortune-telling result
+    cards: Card[];     // List of cards in the session
+    fortune: Fortune[];  // fortune-telling result
+    fortuneSummary: string; // summary of the fortune-telling result
     openQuestions: { question: string, answer: string }[]; // open questions
 }

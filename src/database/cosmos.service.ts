@@ -82,7 +82,7 @@ export class CosmosService {
     }
 
     private mapToSession(resource: any): Session {
-        const { id, topic, cards, fortune, openQuestions } = resource;
-        return { id, topic, cards, fortune, openQuestions }; // Only include relevant fields
+        const { id, topic, cards, fortune, openQuestions, fortuneSummary } = resource;
+        return { id, topic, cards, fortune, openQuestions, fortuneSummary }; // Only include relevant fields
     }
 }

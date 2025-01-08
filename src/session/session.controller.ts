@@ -72,4 +72,18 @@ export class SessionController {
     async getFortune(@Body('sessionId') sessionId: string): Promise<Session> {
         return this.sessionService.addFortune(sessionId);
     }
+
+    /**
+     * Adds an open question to the session.
+     * @param sessionId The ID of the session to add the question to.
+     * @param question The question to add.
+     * @returns The updated session.
+     */
+    @Patch('openQuestion')
+    async addOpenQuestion(
+        @Body('sessionId') sessionId: string,
+        @Body('question') question: string,
+    ): Promise<{ answer: string }> {
+        return this.sessionService.addOpenQuestion(sessionId, question);
+    }
 }
